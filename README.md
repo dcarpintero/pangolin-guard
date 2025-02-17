@@ -1,8 +1,8 @@
 # Fine-Tuning ModernBERT: Exploring a Lightweight Approach to Prompt Guardrails
 
-*Decoder-only* and *encoder-decoder* Large Language Models (LLMs) have become the standard choice for Generative AI applications. However, *encoder-only* models remain essential in AI pipelines due to their attractive balance between performance and inference requirements in non-generative tasks such as classification, named entity recognition, and semantic similarity, where generation of new text is not the primary goal.
+*Decoder-only* and *encoder-decoder* models have become the standard choice for Generative AI applications. However, *encoder-only* models remain essential in AI pipelines due to their attractive balance between performance and inference requirements in non-generative tasks such as classification, named entity recognition, and semantic similarity, where generation of new text is not the primary goal.
 
-In this article, we explore [ModernBERT](https://arxiv.org/abs/2412.13663) [1], a significant advancement in *encoder-only* models. We first outline the key architectural improvements underpinning this model, and then demonstrate how to fine-tune  [ModerBERT-base](https://huggingface.co/answerdotai/ModernBERT-base) version for implementing a lightweight classifier that discriminates malicious prompts. This might provide a baseline approach for adding custom, cheap safety checks to AI pipelines without trading off significant latency.
+In this article, we explore [ModernBERT](https://arxiv.org/abs/2412.13663) [1], a significant advancement in *encoder-only* models. We first outline the key architectural improvements underpinning this model, and then demonstrate how to fine-tune the  [ModerBERT-base](https://huggingface.co/answerdotai/ModernBERT-base) version for implementing a lightweight classifier that discriminates malicious prompts. This provides a baseline approach for adding custom, cheap safety checks to AI pipelines without trading off significant latency.
 
 #### Table of Contents
 
@@ -14,30 +14,30 @@ In this article, we explore [ModernBERT](https://arxiv.org/abs/2412.13663) [1], 
 
 ## A Primer on Encoder-Only Models
 
-Encoder-only models, such as [BERT](https://arxiv.org/abs/1810.04805) [2], are built entirely from the encoder component of the *[Transformer](https://arxiv.org/abs/1706.03762)* architecture [3]. The encoder consists of multiple stacked layers, each comprising a bidirectional multi-head self-attention sublayer and feed-forward neural networks. In practice, input sequences are first tokenized and converted into embedding vectors, with positional encodings added to represent token order. These embeddings pass through the encoder layers, where self-attention heads learn different aspects of the input in form of weighted attention scores, creating updated embeddings that capture contextual dependencies and semantical understanding across the entire sequence.
+*Encoder-only* models, such as [BERT](https://arxiv.org/abs/1810.04805) [2], are built entirely from the encoder component of the *[Transformer](https://arxiv.org/abs/1706.03762)* architecture [3]. The encoder consists of multiple stacked layers, each comprising a bidirectional multi-head self-attention sublayer and feed-forward neural networks. In practice, input sequences are first tokenized and converted into embedding vectors, with positional encodings added to represent token order. These embeddings pass through the encoder layers, where self-attention heads learn different aspects of the input in form of weighted attention scores, creating updated embeddings that capture contextual dependencies and semantical understanding across the entire sequence.
 
-At its core, this architecture differs from decoder-only models in that: (i) it processes input tokens bidirectionally, considering the full context of a sequence during both training and inference, whereas decoder-only models generate tokens sequentially in an autoregressive fashion, limiting paralellization; (ii) it requires only a single forward pass to produce contextualized representations of the entire input, instead of one pass for each generated token as in a decoder architecture; and (iii) it typically has fewer parameters (ModernBERT-large has 395M parameters, while Llama 3.3 has 70B) due to its simpler objective, focused on understanding input rather than generating output.
+At its core, this architecture differs from *decoder-only* models in that: (i) it processes input tokens bidirectionally, considering the full context of a sequence during both training and inference, whereas decoder models generate tokens sequentially in an autoregressive fashion, limiting paralellization; (ii) it requires only a single forward pass to produce contextualized representations of the entire input, instead of one pass for each generated token; and (iii) it typically has fewer parameters ([ModernBERT-large](https://huggingface.co/answerdotai/ModernBERT-large) has 395M parameters, while [Llama 3.3](https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct) has 70B) due to its simpler objective, focused on understanding input rather than generating output.
 
-This enables encoder-only models to efficiently process corpora of documents at scale and quickly perform discriminative tasks.
+This enables *encoder-only* models to efficiently process corpora of documents at scale and quickly perform non-generative tasks.
 
 ## ModernBERT
 
 Introduced in December 2024 by [Answer.AI](https://huggingface.co/answerdotai) and [LightOn.AI](https://huggingface.co/lightonai), ModernBERT is a state-of-the-art *encoder-only* model that advances upon the original BERT architecture by replacing some of its building blocks:
 
-| Feature | BERT | ModernBERT | Effect |
+| | BERT | ModernBERT | Relevance |
 |---------|------|-------------|--------------|
 | **Max Sequence Length** | 512 tokens | 8,192 tokens | *Larger Context (16x), Better Understanding and Performance* |
-| **Bias Terms** | All Layers | Final Decoder | *More Efficient Usage of Parameter Budget* |
-| **Positional Encoding** | Absolute | Rotary (RoPE) | *Scale to Sequences longer than in Training* |
+| **Bias Terms** | All Layers | Final Decoder | *More Efficient Usage of Parameter Capacity* |
+| **Positional Encoding** | Absolute | Rotary (RoPE) | *Scale to Sequences longer than those provided in Training* |
 | **Normalization** | Post-LN | Pre-LN & Extra-N after Embeddings | *Enhance Training Stability* |
 | **Activation** | GeLU | GeGLU (Gated GeLU) | *Enhance Training and Model Performance* |
 | **Attention Mechanism** | Full Global | Global (1/3) & Local (2/3) with 128-token sliding window | *Improve Computational Efficiency from O(n^2) to O(seq_length × window)* |
 | **Batch Processing** | Padding | Unpadding & Sequence Packing | *Avoid Waste Computation on Empty Tokens* |
-| **Flash Attention** | N/A | Flash | *Minimize GPU Transfers, Speed Up Processing* |
+| **Flash Attention** | N/A | Flash | *Minimize GPU Transfers, Speed Up Inference* |
 
 ## Guardrails Dataset
 
-LLM-based applications are susceptible to security challenges in the form of prompt attacks – carefully crafted inputs designed to subvert the models' intended behavior by exploiting their reliance on natural language inputs. These prompt injection attacks can result in models exposing sensitive data or deviating from their core objectives, similar to social engineering exploits.
+LLM-based applications are susceptible to security challenges in form of prompt attacks – carefully crafted inputs designed to subvert the models' intended behavior by exploiting their reliance on natural language inputs. These prompt injection attacks can result in models exposing sensitive data or deviating from their intended behavior, similar to social engineering exploits.
 
 A common defense approach is the use of guardrails to identify and filter out potentially malicious prompts. In this example, we will fine-tune ModernBERT to discriminate malicious prompts using the [InjecGuard](https://arxiv.org/abs/2410.22770) [4] dataset, which provides over 75k samples of both legitimate interactions and documented attack attempts.
 
@@ -61,7 +61,9 @@ To train our model, we need to convert the text prompts to token IDs. This is do
 
 ## Fine Tuning
 
-[...]
+In this section, we adapt the [ModerBERT-base](https://huggingface.co/answerdotai/ModernBERT-base) model and a feedforward classification head to discriminate user prompts.
+
+![image/png](https://cdn-uploads.huggingface.co/production/uploads/64a13b68b14ab77f9e3eb061/V4DMZ2gR53Gl0yas_Vc9U.png)
 
 ## Evaluation
 
@@ -70,9 +72,9 @@ To train our model, we need to convert the text prompts to token IDs. This is do
 ## Citation
 
 ```
-@article{carpintero2025
+@article{modernbert-prompt-guardrails
   author = { Diego Carpintero},
-  title = {Fine-Tuning ModernBERT: A Lightweight Approach to AI Safety Guardrails},
+  title = {Fine-Tuning ModernBERT: Exploring a Lightweight Approach to Prompt Guardrails},
   journal = {Hugging Face Blog},
   year = {2025},
   note = {https://huggingface.co/blog/dcarpintero/fine-tuning-modernbert},
