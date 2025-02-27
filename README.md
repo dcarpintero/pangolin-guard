@@ -22,7 +22,7 @@ This enables *encoder-only* models to efficiently process corpora of documents a
 
 ## ModernBERT
 
-Introduced in December 2024 by [Answer.AI](https://huggingface.co/answerdotai) and [LightOn.AI](https://huggingface.co/lightonai), `ModernBERT` is a state-of-the-art *encoder-only* model that advances upon the original `BERT` architecture by replacing some of its building blocks:
+Introduced in December 2024 by [Answer.AI](https://huggingface.co/answerdotai) and [LightOn.AI](https://huggingface.co/lightonai), ModernBERT is a state-of-the-art *encoder-only* model that advances upon the original `BERT` architecture by replacing some of its building blocks:
 
 | | BERT | ModernBERT | Relevance |
 |---------|------|-------------|--------------|
@@ -35,24 +35,31 @@ Introduced in December 2024 by [Answer.AI](https://huggingface.co/answerdotai) a
 | **Batch Processing** | Padding | Unpadding & Sequence Packing | *Avoid Waste Computation on Empty Tokens* |
 | **Flash Attention** | N/A | Flash | *Minimize GPU Transfers, Speed Up Inference* |
 
-By incorporating these architectural advances, `ModernBERT` improves over `BERT-based` models across both computational efficiency and accuracy without the traditional tradeoffs between these metric. Among all technical improvements, we found the `Alternating Attention` mechanism and the integration of `Flash Attention` to be particular impactful, as they reduced the memory requirements of our training process by nearly 70%.
+By incorporating these architectural advances, `ModernBERT` improves over `BERT-based` models across both computational efficiency and accuracy without the traditional tradeoffs between these metric. Among all technical improvements, we found the `Local-Global Alternating Attention` mechanism and the integration of `Flash Attention` to be particular impactful, as they reduced the memory requirements of our training process by nearly 70%.
 
 #### Alternating Attention
 
 #### Flash Attention
 
-As outlined in the `FlashAttention` paper [4], `Transformer` models face challenges when working with long sequences as the self-attention mechanism has quadratic time and memory complexity in sequence length. In addition, modern GPUs memory architectures are built upon: (i) *on-chip, ultra-fast, very small Static Random Access Memory (SRAM)*, and (ii) *off-chip, slower, larger High Bandwidth Memory (HBM)*. The key insight is that the difference in speed between these two memory levels creates a bottleneck as GPUs spend significant time waiting for data to move between HBM and SRAM. Traditional attention implementations do not take into account this memory hierarchy when moving large matrices between HBM and SRAM. `FlashAttention`  organizes computation to minimize these expensive transfers, even if it means doing some calculations more than once. In practice, `FlashAttention` optimizes I/O operations by applying:
+As outlined in the `FlashAttention` paper [4], `Transformer` models face challenges when working with long sequences as the self-attention mechanism has quadratic time and memory complexity in sequence length. In addition, modern GPUs memory architectures are built upon: (i) *on-chip, ultra-fast, very small Static Random Access Memory (SRAM)*, and (ii) *off-chip, slower, larger High Bandwidth Memory (HBM)*. The key insight is that the difference in speed between these two memory levels creates a bottleneck as GPUs spend significant time waiting for data to move between HBM and SRAM. Traditional attention implementations do not take into account this memory hierarchy that requires moving large matrices between HBM and SRAM. `FlashAttention`  organizes computation to minimize these expensive transfers, even if it means doing some calculations more than once. In practice, `FlashAttention` optimizes I/O operations by applying:
 
 - `Tiling`: splits input matrices into smaller blocks that fit into on-chip SRAM, allowing attention to be computed incrementally by looping these blocks without materializing the large N×N sequence attention matrix in the slower HBM;
 - `Recomputation`: avoids storing intermediate values during the forward pass by recalculating them during the backward pass when needed. This trades off more computation for significantly fewer memory accesses; and
 - `Kernel fusion`: combines multiple operations (matrix multiply, softmax, masking, dropout) into a single GPU kernel, further reducing memory transfers between HBM and SRAM.
 
-<figure>
-  <img style="margin: 0 auto; display: block;" src="https://cdn-uploads.huggingface.co/production/uploads/64a13b68b14ab77f9e3eb061/7GncpQZkov06h_FjMDbtS.png">
-  <figcaption style="text-align: center;">FlashAttention (source: https://arxiv.org/abs/2205.14135)</figcaption>
-</figure>
+<p align="center">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/64a13b68b14ab77f9e3eb061/7GncpQZkov06h_FjMDbtS.png">
+</p>
 
-Further optimizations were proposed in the follow-up `FlashAttention-2` paper [5] by: (i) refining the original algorithm to reduce the number of non-matrix multiplications as they take longer to perform, (ii) parallelizing computation along the sequence length dimension, in addition to the batch and number of heads dimension to make full use of GPU resources, and (iii) reducing shared memory access by inverting the split scheme and partitioning Q while keeping K, V accesible.
+<p align="center">FlashAttention (source: https://arxiv.org/abs/2205.14135)</p>
+
+Further optimizations were proposed in the follow-up `FlashAttention-2` paper [5] by: (i) refining the original algorithm to reduce the number of non-matrix multiplications as they take longer to perform, (ii) parallelizing computation along the sequence length dimension, in addition to the batch and number of heads dimension to make full use of GPU resources, and (iii) reducing shared memory access by inverting the split scheme and partitioning *Q* while keeping *K, V* matrices accesible.
+
+<p align="center">
+  <img src="https://cdn-uploads.huggingface.co/production/uploads/64a13b68b14ab77f9e3eb061/dwoHPoeH0Ul5JVbvDsK5u.png">
+</p>
+
+<p align="center">FlashAttention-2 split scheme (source: https://arxiv.org/abs/2307.08691)</p>
 
 ## Guardrails Dataset
 
