@@ -12,6 +12,9 @@ In this article, we explore [ModernBERT](https://arxiv.org/abs/2412.13663) [1], 
     2. [Alternating Attention](#alternating-attention)
     3. [Flash Attention](#flash-attention)
 4. [Guardrails Dataset](#guardrails-dataset)
+    1. [Tokenization](#tokenization)
+    2. [Understanding [CLS] and [SEP] special tokens](#understanding-cls-and-sep-special-tokens)
+    3. [Data Collation](#data-collation)
 5. [Fine-Tuning](#fine-tuning)
 6. [Evaluation](#evaluation)
 
@@ -104,11 +107,33 @@ Let’s check out an example:
 [...]
 ```
 
-To train our model, we need to convert the text prompts to token IDs. This is done by a `Tokenizer`, which tokenizes the inputs (including converting the tokens to their corresponding IDs in the pre-trained vocabulary):
+#### Tokenization
 
+Tokenization is a foundational process to transform text into a format that models can understand. It works by splitting an input sequence into smaller units called tokens and mapping each token to a unique numerical ID from the model's vocabulary. Depending on the tokenization strategy, these tokens might represent whole words, subwords, or individual characters. The numerical IDs act as indexes into the token embeddings, where each token is represented as a dense vector capturing its initial semantic properties.
+
+[ModernBERT](https://arxiv.org/abs/2412.13663) uses a subword tokenization method based on a modified version of the BPE [OLMo tokenizer](https://arxiv.org/abs/2402.00838) [8] that can handle out-of-vocabulary words by breaking an input into subword units from a 50,368 vocabulary (multiple of 64). In this section, we use the [AutoTokenizer](https://huggingface.co/docs/transformers/main_classes/tokenizer) from the [Hugging Face Transformers](https://huggingface.co/docs/transformers/index) library to tokenize our prompt sentences. The tokenizer is initialized with the same checkpoint as our model to ensure compatibility.
+
+```python
+from transformers import AutoTokenizer
+
+checkpoint = "answerdotai/ModernBERT-base"
+tokenizer = AutoTokenizer.from_pretrained(checkpoint)
+
+def tokenize(batch):
+    return tokenizer(batch['prompt'], truncation=True)
+
+t_ds = ds.map(tokenize, batched=True)
 ```
-[...]
-```
+
+The `tokenize` function processeses the prompt sentences, applying truncation to fit [ModernBERT](https://arxiv.org/abs/2412.13663) maximum sequence length of 8192 tokens. The map function is then used to apply this tokenization to our entire dataset efficiently.
+
+#### Understanding `[CLS]` and `[SEP]` special tokens
+
+In practice, models like [ModernBERT](https://arxiv.org/abs/2412.13663) are designed with specific special tokens in mind, such as `[CLS]` and `[SEP]` to guide the model's understanding of input sequences.
+
+`[CLS]` stands for `Classification` and is placed at the beginning of every input sequence. As the input passes through the model's encoder layers, this token will progressively accumulate contextual information from the entire sequence (through the self-attention mechanisms). Its final-layer representation will be then passed into our classification head (a feed-forward neural network).
+
+`[SEP]` stands for `Separator` and is used to separate different segments of text within an input sequence. This token is particular relevant for tasks like next sentence prediction, where the model needs to determine if two sentences are related. The `[SEP]` token helps the model understand which tokens belong to which sentence.
 
 ## Fine Tuning
 
