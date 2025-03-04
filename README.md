@@ -135,6 +135,20 @@ In practice, models like [ModernBERT](https://arxiv.org/abs/2412.13663) are desi
 
 `[SEP]` stands for `Separator` and is used to separate different segments of text within an input sequence. This token is particular relevant for tasks like next sentence prediction, where the model needs to determine if two sentences are related. The `[SEP]` token helps the model understand which tokens belong to which sentence.
 
+#### Data Collation
+
+`Dynamic padding` is an efficient technique used to handle variable-length sequences within a batch. Instead of padding all sequences to a fixed maximum length, which will waste computational resources on empty tokens, `dynamic padding` adds padding only up to the length of the longest sequence in each batch. This approach optimizes memory usage and computation time.
+
+In our fine-tuning process, we will use the [DataCollatorWithPadding](https://huggingface.co/docs/transformers/main_classes/data_collator#transformers.DataCollatorWithPaddingata_collator) class, which automatically performs this step on each batch. This collator takes our tokenized examples and converts them into batches of tensors, handling the padding process.
+
+```python
+from transformers import DataCollatorWithPadding
+
+data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+```
+
+Now that we have covered tokenization and data collation, we have completed the data preparation steps to fine-tune the [ModernBERT-base](https://huggingface.co/answerdotai/ModernBERT-base) model. These steps ensure our input sequences are properly formatted before moving to the actual training phase.
+
 ## Fine Tuning
 
 In this section, we adapt the [ModerBERT-base](https://huggingface.co/answerdotai/ModernBERT-base) model and a feedforward classification head to discriminate user prompts.
