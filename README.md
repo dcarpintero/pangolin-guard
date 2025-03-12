@@ -112,7 +112,7 @@ We will use the 🤗 [Datasets](https://huggingface.co/docs/datasets/index) libr
 ```python
 from datasets import Dataset, DatasetDict
 
-ds = Dataset.from_json('dataset/injectguard.json').shuffle(seed=42)
+ds = Dataset.from_json('datasets/train.json').shuffle(seed=42)
 ds = ds.train_test_split(test_size=0.2)
 
 ds = DatasetDict({
@@ -380,7 +380,7 @@ from evaluate import evaluator
 import evaluate
 
 pipe = pipeline("text-classification", model=model, tokenizer=tokenizer)
-data = Dataset.from_json('eval.json')
+data = Dataset.from_json('datasets/eval.json')
 metric = evaluate.load("accuracy")
 
 task_evaluator = evaluator("text-classification")
