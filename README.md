@@ -2,9 +2,9 @@
 
 *Decoder-only* and *encoder-decoder* models have become the standard choice for Generative AI applications. However, *encoder-only* models remain essential in AI pipelines due to their attractive balance between performance and inference requirements in non-generative tasks such as classification, retrieval and QA, where generation of new text is not the primary goal.
 
-In this article, we explore [ModernBERT](https://arxiv.org/abs/2412.13663) [1], a significant advancement in *encoder-only* models. We first outline the key architectural improvements underpinning this model, and then demonstrate how to fine-tune the  [ModernBERT-base](https://huggingface.co/answerdotai/ModernBERT-base) and [ModernBERT-large](https://huggingface.co/answerdotai/ModernBERT-base) versions for implementing a lightweight classifier that discriminates malicious prompts.
+In this article, we explore [ModernBERT](https://arxiv.org/abs/2412.13663) [1], a significant advancement in *encoder-only* models. We first outline the key architectural improvements underpinning this model, and then demonstrate how to fine-tune the  [ModernBERT-base](https://huggingface.co/answerdotai/ModernBERT-base) and [ModernBERT-large](https://huggingface.co/answerdotai/ModernBERT-base) versions for implementing a lightweight classifier that discriminates malicious prompts. Despite a relative small size (395M parameters in the large version) our specialized, fine-tuned model achieves 84.72% accuracy on a custom [benchmark](#benchmark), which fairly approximates the performance of Claude 3.7 (86.81%) and Gemini Flash 2.0 (86.11%) larger models.
 
-This provides a baseline approach for (i) adding custom, self-hosted safety checks to LLM-based applications, (ii) steering conversational interfaces to align with pre-defined routes, and (iii) mitigating risks when connecting AI pipelines to other services; all without trading off significant latency.
+This could provide a baseline approach for (i) adding custom, self-hosted safety checks to LLM-based applications, (ii) steering conversational interfaces to align with compliant topics, and (iii) mitigating risks when connecting AI pipelines to other services; without trading off significant latency.
 
 #### Table of Contents
 
@@ -368,7 +368,7 @@ result = classifier(prompt)[0]
 
 ## Benchmark
 
-Our fine-tuned models were evaluated on unseen data from a subset of specialized benchmarks targeting prompt safety and malicious input detection:
+Our fine-tuned models were evaluated on unseen data from a subset of specialized benchmarks targeting prompt safety and malicious input detection, while testing *over-defense* behavior:
 
 * **NotInject**: Designed to measure *over-defense* in prompt guard models by including benign inputs enriched with trigger words common in prompt injection attacks.
 * **BIPIA**: Evaluates privacy invasion attempts and boundary-pushing queries through indirect prompt injection attacks.
@@ -404,6 +404,11 @@ results
  'samples_per_second': 28.34490859778815,
  'latency_in_seconds': 0.03527970452083354}
 ```
+
+Despite a relative small size, 395M parameters in the large (L) version, our specialized, fine-tuned model approximates the performance of Claude 3.7 (86.81%) and Gemini Flash 2.0 (86.11%) larger models:
+
+![image/png](https://cdn-uploads.huggingface.co/production/uploads/64a13b68b14ab77f9e3eb061/bODii0VbPk-siqftXFVHV.png)
+
 
 ## Model Cards
 
