@@ -434,7 +434,7 @@ Injection Guardrail Models*. [arXiv:2410.22770](https://arxiv.org/abs/2410.22770
 ```
 @article{modernbert-prompt-guardrails
   author = { Diego Carpintero},
-  title = {Pangolin: Fine-Tuning ModernBERT as a Lightweight Approach to Prompt Guardrails},
+  title = {Pangolin: Fine-Tuning ModernBERT as a Lightweight Approach to AI Guardrails},
   journal = {Hugging Face Blog},
   year = {2025},
   note = {https://huggingface.co/blog/dcarpintero/pangolin-fine-tuning-modern-bert},
