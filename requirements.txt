@@ -1,0 +1,1 @@
+gradio==5.23.0 # huggingface spaces handles gradio version
